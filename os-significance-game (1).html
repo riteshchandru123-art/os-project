@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Life With and Without an Operating System</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0F14;
+    --panel:#121821;
+    --panel-alt:#1A222D;
+    --line:#2A3542;
+    --text:#E7EBEF;
+    --text-dim:#8B97A6;
+    --amber:#F2A93B;
+    --cyan:#5FD1E0;
+    --red:#E2574C;
+    --green-ok:#6FCF97;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:radial-gradient(ellipse at 50% 0%, #131A24 0%, #0B0F14 60%);
+    color:var(--text);
+    font-family:'IBM Plex Sans', sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:28px 16px 60px;
+  }
+  h1.page-title{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    font-size:22px;
+    letter-spacing:0.2px;
+    margin:0 0 4px;
+    color:var(--text);
+  }
+  p.page-sub{
+    font-size:14px;
+    color:var(--text-dim);
+    margin:0 0 26px;
+    max-width:520px;
+    text-align:center;
+    line-height:1.5;
+  }
+
+  /* laptop chassis */
+  .laptop{
+    width:100%;
+    max-width:760px;
+  }
+  .bezel{
+    background:linear-gradient(180deg,#1B2029,#14181F);
+    border:1px solid #2C333D;
+    border-radius:14px 14px 6px 6px;
+    padding:14px 14px 10px;
+    box-shadow:0 30px 60px -20px rgba(0,0,0,0.6);
+  }
+  .bezel-top{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:0 4px 10px;
+  }
+  .cam-dot{
+    width:6px;height:6px;border-radius:50%;
+    background:#3A4451;
+  }
+  .bezel-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--text-dim);
+    letter-spacing:0.5px;
+  }
+  .screen{
+    background:var(--bg);
+    border:1px solid #262E38;
+    border-radius:4px;
+    min-height:460px;
+    position:relative;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+  }
+  .deck{
+    height:16px;
+    background:linear-gradient(180deg,#171B22,#0F1218);
+    border-radius:0 0 10px 10px;
+    margin:0 30px;
+    border:1px solid #262E38;
+    border-top:none;
+  }
+  .hinge-shadow{
+    height:6px;
+    background:#0A0D11;
+  }
+
+  /* scenes */
+  .scene{
+    display:none;
+    flex:1;
+    padding:22px 22px 18px;
+    flex-direction:column;
+  }
+  .scene.active{ display:flex; }
+  .scene-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--amber);
+    margin-bottom:4px;
+  }
+  .scene-title{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:17px;
+    font-weight:600;
+    margin:0 0 14px;
+  }
+
+  /* ---- SCENE: no OS ---- */
+  .hw-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    grid-template-rows:repeat(3,1fr);
+    gap:10px;
+    flex:1;
+    margin-bottom:14px;
+  }
+  .hw-chip{
+    border:1px dashed #33404E;
+    border-radius:4px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--text-dim);
+    padding:8px;
+    text-align:center;
+    cursor:pointer;
+    transition:transform .12s ease;
+    user-select:none;
+  }
+  .hw-chip:active{ transform:scale(0.96); }
+  .hw-chip.shake{ animation:shake .3s ease; }
+  @keyframes shake{
+    0%,100%{ transform:translateX(0); }
+    25%{ transform:translateX(-4px); }
+    75%{ transform:translateX(4px); }
+  }
+  .hub{
+    grid-column:2; grid-row:2;
+    border:1px solid var(--red);
+    color:var(--red);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:20px;
+    font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:4px;
+    background:rgba(226,87,76,0.06);
+  }
+  .err-log{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--red);
+    min-height:18px;
+    margin-bottom:10px;
+  }
+  .crt{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    color:var(--green-ok);
+    background:#050807;
+    border:1px solid #1C2A22;
+    border-radius:4px;
+    padding:10px 12px;
+    min-height:52px;
+    margin-bottom:14px;
+    line-height:1.6;
+  }
+  .cursor{ animation:blink 1s step-start infinite; }
+  @keyframes blink{ 50%{ opacity:0; } }
+
+  /* buttons */
+  .btn{
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:13px;
+    font-weight:600;
+    border:1px solid var(--line);
+    background:var(--panel-alt);
+    color:var(--text);
+    padding:9px 16px;
+    border-radius:4px;
+    cursor:pointer;
+    align-self:flex-start;
+  }
+  .btn:hover{ border-color:var(--cyan); }
+  .btn.primary{
+    background:var(--amber);
+    color:#1A1200;
+    border-color:var(--amber);
+  }
+  .btn.primary:hover{ filter:brightness(1.06); }
+  .btn.danger{
+    background:transparent;
+    border-color:var(--red);
+    color:var(--red);
+  }
+  .btn:disabled{ opacity:0.4; cursor:not-allowed; }
+  .row-btns{ display:flex; gap:10px; }
+
+  /* ---- SCENE: installing ---- */
+  .install-log{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    color:var(--cyan);
+    background:#0A1014;
+    border:1px solid #1C2731;
+    border-radius:4px;
+    padding:12px 14px;
+    flex:1;
+    line-height:1.9;
+    overflow:hidden;
+  }
+  .install-log div{ opacity:0; animation:fadeIn .25s ease forwards; }
+  @keyframes fadeIn{ to{ opacity:1; } }
+  .progress-track{
+    height:8px;
+    background:#1A222D;
+    border-radius:4px;
+    overflow:hidden;
+    margin:14px 0;
+  }
+  .progress-fill{
+    height:100%;
+    width:0%;
+    background:var(--cyan);
+    transition:width .2s linear;
+  }
+
+  /* ---- SCENE: game ---- */
+  .status-bar{
+    display:flex;
+    justify-content:space-between;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--text-dim);
+    margin-bottom:10px;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .status-bar b{ color:var(--text); }
+  .meter{
+    width:90px;
+    height:6px;
+    background:#1A222D;
+    border-radius:3px;
+    overflow:hidden;
+    display:inline-block;
+    vertical-align:middle;
+    margin-left:6px;
+  }
+  .meter-fill{ height:100%; }
+  .meter-fill.ram{ background:var(--cyan); }
+  .meter-fill.health{ background:var(--green-ok); }
+
+  .game-grid{
+    display:grid;
+    grid-template-columns:1.1fr 1fr;
+    gap:14px;
+    flex:1;
+    min-height:0;
+  }
+  .panel{
+    border:1px solid var(--line);
+    border-radius:4px;
+    background:var(--panel);
+    padding:10px 12px;
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+  }
+  .panel-title{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    color:var(--text-dim);
+    margin-bottom:8px;
+  }
+  .queue-list{
+    overflow-y:auto;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    flex:1;
+  }
+  .proc-row{
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:6px 8px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    background:var(--panel-alt);
+  }
+  .proc-row.virus{
+    border-color:var(--red);
+    background:rgba(226,87,76,0.08);
+  }
+  .proc-name{ display:flex; justify-content:space-between; }
+  .proc-mini-btns{ display:flex; gap:6px; }
+  .proc-mini-btns button{
+    font-family:'IBM Plex Sans', sans-serif;
+    font-size:10.5px;
+    padding:4px 8px;
+    border-radius:3px;
+    border:1px solid var(--line);
+    background:transparent;
+    color:var(--text);
+    cursor:pointer;
+  }
+  .proc-mini-btns button.run{ border-color:var(--cyan); color:var(--cyan); }
+  .proc-mini-btns button.quarantine{ border-color:var(--red); color:var(--red); }
+
+  .cores{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  .core{
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:8px;
+    min-height:64px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    background:var(--panel-alt);
+  }
+  .core.idle{ color:var(--text-dim); align-items:center; justify-content:center; }
+  .core-progress{
+    height:5px;
+    background:#0F1620;
+    border-radius:3px;
+    overflow:hidden;
+  }
+  .core-progress-fill{ height:100%; background:var(--green-ok); }
+
+  .flash-banner{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11.5px;
+    text-align:center;
+    padding:5px 0;
+    margin-bottom:8px;
+    border-radius:4px;
+    opacity:0;
+    transition:opacity .2s ease;
+  }
+  .flash-banner.show{ opacity:1; }
+  .flash-banner.warn{ background:rgba(242,169,59,0.12); color:var(--amber); }
+  .flash-banner.bad{ background:rgba(226,87,76,0.12); color:var(--red); }
+  .flash-banner.good{ background:rgba(111,207,151,0.12); color:var(--green-ok); }
+
+  /* ---- SCENE: end ---- */
+  .end-stats{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    line-height:2;
+    color:var(--text);
+    margin-bottom:14px;
+  }
+  .end-stats span{ color:var(--cyan); }
+  .recap{
+    font-size:13px;
+    color:var(--text-dim);
+    line-height:1.6;
+    margin-bottom:16px;
+  }
+  .recap b{ color:var(--text); }
+
+  .instructions{
+    max-width:660px;
+    margin-top:22px;
+    font-size:13px;
+    color:var(--text-dim);
+    line-height:1.7;
+    text-align:left;
+  }
+  .instructions b{ color:var(--text); }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">What does an operating system actually do?</h1>
+<p class="page-sub">A small interactive laptop screen. First see the machine with no OS, then boot one, then run it as the OS for sixty seconds.</p>
+
+<div class="laptop">
+  <div class="bezel">
+    <div class="bezel-top">
+      <div class="cam-dot"></div>
+      <div class="bezel-label">laptop — power state simulation</div>
+    </div>
+    <div class="screen">
+
+      <!-- SCENE 1: NO OS -->
+      <div class="scene active" id="scene-noos">
+        <div class="scene-label">Stage 1</div>
+        <div class="scene-title">Power on, no operating system installed</div>
+
+        <div class="crt" id="crt">Screen is off.</div>
+        <div class="err-log" id="errLog"></div>
+
+        <div class="hw-grid" id="hwGrid">
+          <div class="hw-chip" data-name="Keyboard">Keyboard</div>
+          <div class="hw-chip" data-name="Display">Display</div>
+          <div class="hw-chip" data-name="Mouse">Mouse / Trackpad</div>
+          <div class="hw-chip" data-name="RAM">RAM</div>
+          <div class="hub">?</div>
+          <div class="hw-chip" data-name="CPU">CPU</div>
+          <div class="hw-chip" data-name="Storage">Storage disk</div>
+          <div class="hw-chip" data-name="Wi-Fi">Wi‑Fi card</div>
+          <div class="hw-chip" data-name="USB">USB port</div>
+        </div>
+
+        <div class="row-btns">
+          <button class="btn primary" id="btnPowerOn">Turn on the laptop</button>
+          <button class="btn" id="btnInstall" disabled>Install an operating system</button>
+        </div>
+      </div>
+
+      <!-- SCENE 2: INSTALLING -->
+      <div class="scene" id="scene-install">
+        <div class="scene-label">Stage 2</div>
+        <div class="scene-title">Installing the operating system</div>
+        <div class="install-log" id="installLog"></div>
+        <div class="progress-track"><div class="progress-fill" id="installFill"></div></div>
+      </div>
+
+      <!-- SCENE 3: GAME -->
+      <div class="scene" id="scene-game">
+        <div class="scene-label">Stage 3</div>
+        <div class="scene-title">You are the OS. Keep the laptop running for 60s.</div>
+
+        <div class="status-bar">
+          <div>Score: <b id="statScore">0</b></div>
+          <div>Time left: <b id="statTime">60</b>s</div>
+          <div>RAM<span class="meter"><span class="meter-fill ram" id="ramFill" style="width:0%"></span></span> <b id="ramText">0%</b></div>
+          <div>System health<span class="meter"><span class="meter-fill health" id="healthFill" style="width:100%"></span></span> <b id="healthText">100%</b></div>
+        </div>
+
+        <div class="flash-banner" id="flashBanner"></div>
+
+        <div class="game-grid">
+          <div class="panel">
+            <div class="panel-title">Incoming processes — assign them somewhere</div>
+            <div class="queue-list" id="queueList"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-title">CPU cores (4)</div>
+            <div class="cores" id="cores"></div>
+            <div class="panel-title" style="margin-top:10px;">Security</div>
+            <div style="font-size:11px;color:var(--text-dim);font-family:'IBM Plex Mono',monospace;">Quarantine suspicious files here using the button on the process row.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCENE 4: END -->
+      <div class="scene" id="scene-end">
+        <div class="scene-label" id="endLabel">Shift complete</div>
+        <div class="scene-title" id="endTitle">Here's what you actually did</div>
+        <div class="end-stats" id="endStats"></div>
+        <div class="recap" id="endRecap"></div>
+        <div class="row-btns">
+          <button class="btn primary" id="btnReplay">Play again</button>
+          <button class="btn" id="btnBackToNoOs">See stage 1 again</button>
+        </div>
+      </div>
+
+    </div>
+    <div class="hinge-shadow"></div>
+    <div class="deck"></div>
+  </div>
+</div>
+
+<div class="instructions">
+  <b>How this maps to a real OS:</b> Stage 1 shows hardware that exists but cannot talk to itself — that gap is exactly what an operating system fills. Stage 2's boot log lines are real OS jobs: kernel loading, memory management, the file system, device drivers, the user interface. Stage 3 turns you into the scheduler: assigning processes to CPU cores is <b>process management</b>, watching the RAM meter is <b>memory management</b>, quarantining suspicious files is <b>security</b>, and a queue that backs up is what a real laptop calls "lag."
+</div>
+
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  function showScene(id){
+    document.querySelectorAll('.scene').forEach(function(s){ s.classList.remove('active'); });
+    $(id).classList.add('active');
+  }
+
+  /* ---------- STAGE 1 ---------- */
+  var powered = false;
+  $('btnPowerOn').addEventListener('click', function(){
+    powered = true;
+    $('crt').innerHTML = 'NO BOOTABLE OPERATING SYSTEM FOUND<br>Hardware initialized. Nothing is coordinating it.<br><span class="cursor">_</span>';
+    $('btnInstall').disabled = false;
+    $('btnPowerOn').disabled = true;
+  });
+
+  document.querySelectorAll('.hw-chip').forEach(function(chip){
+    chip.addEventListener('click', function(){
+      if(!powered){
+        $('errLog').textContent = 'The laptop is off. Nothing responds either way.';
+        return;
+      }
+      chip.classList.remove('shake');
+      void chip.offsetWidth;
+      chip.classList.add('shake');
+      $('errLog').textContent = 'ERR: ' + chip.dataset.name + ' has no driver and no scheduler to talk to. No response.';
+    });
+  });
+
+  $('btnInstall').addEventListener('click', function(){
+    showScene('scene-install');
+    runInstall();
+  });
+
+  /* ---------- STAGE 2 ---------- */
+  var installSteps = [
+    'Loading kernel into memory...',
+    'Kernel handed control of the CPU...',
+    'Initializing memory manager (RAM map created)...',
+    'Mounting file system on storage disk...',
+    'Loading device drivers: keyboard, mouse, display, Wi‑Fi...',
+    'Starting process scheduler...',
+    'Starting security and permissions layer...',
+    'Loading the user interface...',
+    'Operating system ready.'
+  ];
+  function runInstall(){
+    var log = $('installLog');
+    log.innerHTML = '';
+    var fill = $('installFill');
+    fill.style.width = '0%';
+    var i = 0;
+    var timer = setInterval(function(){
+      if(i >= installSteps.length){
+        clearInterval(timer);
+        setTimeout(function(){
+          showScene('scene-game');
+          startGame();
+        }, 500);
+        return;
+      }
+      var div = document.createElement('div');
+      div.textContent = '> ' + installSteps[i];
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+      i++;
+      fill.style.width = Math.round((i/installSteps.length)*100) + '%';
+    }, 550);
+  }
+
+  /* ---------- STAGE 3: GAME ---------- */
+  var PROCESS_TYPES = [
+    {id:'browser', name:'chrome.exe',      ram:24, duration:4200, points:10},
+    {id:'game',    name:'unity_build.exe', ram:34, duration:5200, points:15},
+    {id:'print',   name:'spooler.exe',     ram:8,  duration:2200, points:5},
+    {id:'music',   name:'spotify.exe',     ram:14, duration:3400, points:8},
+    {id:'edit',    name:'word_proc.exe',   ram:18, duration:3800, points:9},
+    {id:'virus',   name:'svchost32_tmp.exe.exe', ram:16, duration:0, points:20, isVirus:true}
+  ];
+
+  var state;
+  function freshState(){
+    return {
+      score:0,
+      timeLeft:60,
+      ram:0,
+      health:100,
+      queue:[],
+      cores:[null,null,null,null],
+      pidCounter:1000,
+      processed:0,
+      threatsBlocked:0,
+      threatsMissed:0,
+      overloads:0,
+      running:false
+    };
+  }
+
+  var spawnTimer, tickTimer, coreTimers = [];
+
+  function startGame(){
+    state = freshState();
+    state.running = true;
+    renderAll();
+    spawnTimer = setInterval(spawnProcess, 1900);
+    tickTimer = setInterval(gameTick, 1000);
+    spawnProcess();
+  }
+
+  function flash(msg, type){
+    var b = $('flashBanner');
+    b.textContent = msg;
+    b.className = 'flash-banner show ' + type;
+    clearTimeout(flash._t);
+    flash._t = setTimeout(function(){ b.classList.remove('show'); }, 1600);
+  }
+
+  function spawnProcess(){
+    if(!state.running) return;
+    if(state.queue.length >= 6){
+      state.health = Math.max(0, state.health - 6);
+      state.overloads++;
+      flash('Queue is full — a process was dropped. That is a freeze.', 'bad');
+      checkHealth();
+      renderStatus();
+      return;
+    }
+    var pool = PROCESS_TYPES;
+    var pick = pool[Math.floor(Math.random()*pool.length)];
+    // keep virus frequency lower
+    if(pick.isVirus && Math.random() > 0.5){
+      pick = pool[Math.floor(Math.random()*(pool.length-1))];
+    }
+    state.pidCounter++;
+    state.queue.push({
+      pid: state.pidCounter,
+      type: pick,
+      queuedAt: Date.now()
+    });
+    renderQueue();
+  }
+
+  function renderAll(){ renderStatus(); renderQueue(); renderCores(); }
+
+  function renderStatus(){
+    $('statScore').textContent = state.score;
+    $('statTime').textContent = state.timeLeft;
+    $('ramFill').style.width = Math.min(100,state.ram) + '%';
+    $('ramText').textContent = Math.min(100,Math.round(state.ram)) + '%';
+    $('healthFill').style.width = Math.max(0,state.health) + '%';
+    $('healthText').textContent = Math.max(0,Math.round(state.health)) + '%';
+  }
+
+  function renderQueue(){
+    var list = $('queueList');
+    list.innerHTML = '';
+    state.queue.forEach(function(item){
+      var row = document.createElement('div');
+      row.className = 'proc-row' + (item.type.isVirus ? ' virus' : '');
+      var name = document.createElement('div');
+      name.className = 'proc-name';
+      name.innerHTML = '<span>PID ' + item.pid + ' — ' + item.type.name + (item.type.isVirus ? ' <span style=\"color:var(--red)\">[unsigned]</span>' : '') + '</span><span>' + item.type.ram + '% RAM</span>';
+      row.appendChild(name);
+      var btns = document.createElement('div');
+      btns.className = 'proc-mini-btns';
+      var runBtn = document.createElement('button');
+      runBtn.className = 'run';
+      runBtn.textContent = 'Run on CPU';
+      runBtn.addEventListener('click', function(){ runProcess(item); });
+      btns.appendChild(runBtn);
+      var qBtn = document.createElement('button');
+      qBtn.className = 'quarantine';
+      qBtn.textContent = 'Quarantine';
+      qBtn.addEventListener('click', function(){ quarantineProcess(item); });
+      btns.appendChild(qBtn);
+      row.appendChild(btns);
+      list.appendChild(row);
+    });
+  }
+
+  function renderCores(){
+    var wrap = $('cores');
+    wrap.innerHTML = '';
+    state.cores.forEach(function(c, idx){
+      var el = document.createElement('div');
+      if(!c){
+        el.className = 'core idle';
+        el.textContent = 'Core ' + (idx+1) + ' — idle';
+      } else {
+        el.className = 'core';
+        var pct = Math.round(((Date.now()-c.startedAt)/c.type.duration)*100);
+        pct = Math.min(100, Math.max(0,pct));
+        el.innerHTML = '<div>Core '+(idx+1)+'<br>'+c.type.name+'</div><div class="core-progress"><div class="core-progress-fill" style="width:'+pct+'%"></div></div>';
+      }
+      wrap.appendChild(el);
+    });
+  }
+
+  function runProcess(item){
+    if(item.type.isVirus){
+      state.health = Math.max(0, state.health - 18);
+      state.threatsMissed++;
+      flash('That file was malware. Running it hurt system health.', 'bad');
+      removeFromQueue(item);
+      checkHealth();
+      renderAll();
+      return;
+    }
+    var freeIdx = state.cores.findIndex(function(c){ return c===null; });
+    if(freeIdx === -1){
+      flash('All 4 cores are busy. Try another core or wait.', 'warn');
+      return;
+    }
+    if(state.ram + item.type.ram > 100){
+      flash('Not enough free RAM to run this right now.', 'warn');
+      return;
+    }
+    removeFromQueue(item);
+    state.ram += item.type.ram;
+    var core = { type:item.type, startedAt:Date.now() };
+    state.cores[freeIdx] = core;
+    var idx = freeIdx;
+    coreTimers[idx] = setTimeout(function(){
+      state.ram = Math.max(0, state.ram - item.type.ram);
+      state.cores[idx] = null;
+      state.score += item.type.points;
+      state.processed++;
+      renderAll();
+    }, item.type.duration);
+    renderAll();
+  }
+
+  function quarantineProcess(item){
+    removeFromQueue(item);
+    if(item.type.isVirus){
+      state.score += item.type.points;
+      state.threatsBlocked++;
+      flash('Threat quarantined. Good call.', 'good');
+    } else {
+      state.health = Math.max(0, state.health - 4);
+      flash('That was a harmless process — quarantining it wasted a bit of health.', 'warn');
+    }
+    checkHealth();
+    renderAll();
+  }
+
+  function removeFromQueue(item){
+    state.queue = state.queue.filter(function(q){ return q.pid !== item.pid; });
+  }
+
+  function checkHealth(){
+    if(state.health <= 0){
+      endGame(false);
+    }
+  }
+
+  var coreRenderTicker = setInterval(function(){
+    if(state && state.running) renderCores();
+  }, 200);
+
+  function gameTick(){
+    if(!state.running) return;
+    state.timeLeft--;
+    // aging penalty: processes waiting too long quietly hurt health a little
+    var stale = state.queue.filter(function(q){ return Date.now()-q.queuedAt > 7000; });
+    if(stale.length){
+      state.health = Math.max(0, state.health - stale.length*2);
+    }
+    renderStatus();
+    checkHealth();
+    if(state.timeLeft <= 0){
+      endGame(true);
+    }
+  }
+
+  function endGame(survived){
+    state.running = false;
+    clearInterval(spawnTimer);
+    clearInterval(tickTimer);
+    coreTimers.forEach(function(t){ clearTimeout(t); });
+
+    $('endLabel').textContent = survived ? 'Shift complete' : 'System crash';
+    $('endTitle').textContent = survived ? 'The OS held the system together' : 'Health hit zero — the system froze';
+    $('endStats').innerHTML =
+      'Processes completed: <span>' + state.processed + '</span><br>' +
+      'Threats quarantined: <span>' + state.threatsBlocked + '</span><br>' +
+      'Threats that got through: <span>' + state.threatsMissed + '</span><br>' +
+      'Queue overloads: <span>' + state.overloads + '</span><br>' +
+      'Final score: <span>' + state.score + '</span>';
+    $('endRecap').innerHTML = 'Every action you took just now is a real OS job: <b>assigning to a core</b> is process scheduling, <b>watching the RAM bar</b> is memory management, <b>quarantining a file</b> is the security layer, and a <b>full queue</b> is exactly what you feel as lag on a real laptop. Without an OS doing this automatically, none of it happens — which is what stage 1 showed.';
+    showScene('scene-end');
+  }
+
+  $('btnReplay').addEventListener('click', function(){
+    showScene('scene-game');
+    startGame();
+  });
+  $('btnBackToNoOs').addEventListener('click', function(){
+    showScene('scene-noos');
+  });
+})();
+</script>
+
+</body>
+</html>
