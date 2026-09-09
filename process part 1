@@ -1,0 +1,200 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include "process.h"
+
+/* The pool of process "kinds" the OS might have to handle.
+   This mirrors the browser version of the game so both tell the same story. */
+const ProcessType PROCESS_TYPES[NUM_PROCESS_TYPES] = {
+    { "chrome.exe",             24, 4, 10, 0 },
+    { "unity_build.exe",        34, 5, 15, 0 },
+    { "spooler.exe",             8, 2,  5, 0 },
+    { "spotify.exe",            14, 3,  8, 0 },
+    { "word_proc.exe",          18, 4,  9, 0 },
+    { "svchost32_tmp.exe.exe",  16, 3, 20, 1 }   /* the "virus" */
+};
+
+void init_game(GameState *gs) {
+    memset(gs, 0, sizeof(GameState));
+    gs->time_left      = 20;   /* 20 turns = one "shift" */
+    gs->health         = 100;
+    gs->pid_counter    = 1000;
+    gs->running        = 1;
+    for (int i = 0; i < NUM_CORES; i++) gs->cores[i].active = 0;
+    for (int i = 0; i < MAX_QUEUE; i++) gs->queue[i].in_use = 0;
+}
+
+static int queue_count(const GameState *gs) {
+    int c = 0;
+    for (int i = 0; i < MAX_QUEUE; i++) if (gs->queue[i].in_use) c++;
+    return c;
+}
+
+void spawn_process(GameState *gs) {
+    if (queue_count(gs) >= MAX_QUEUE) {
+        gs->health -= 6;
+        gs->overloads++;
+        printf("  [!] Queue is full - an incoming process was dropped. That is a freeze.\n");
+        return;
+    }
+    int idx = rand() % NUM_PROCESS_TYPES;
+    ProcessType t = PROCESS_TYPES[idx];
+
+    /* Keep the virus from showing up too often, same as the web version. */
+    if (t.is_virus && (rand() % 100) > 35) {
+        idx = rand() % (NUM_PROCESS_TYPES - 1);
+        t = PROCESS_TYPES[idx];
+    }
+
+    for (int i = 0; i < MAX_QUEUE; i++) {
+        if (!gs->queue[i].in_use) {
+            gs->queue[i].in_use = 1;
+            gs->queue[i].pid    = gs->pid_counter++;
+            gs->queue[i].type   = t;
+            gs->queue[i].waited = 0;
+            printf("  [+] New process queued: PID %d - %s (%d%% RAM)%s\n",
+                   gs->queue[i].pid, t.name, t.ram,
+                   t.is_virus ? "  [UNSIGNED - looks suspicious]" : "");
+            break;
+        }
+    }
+}
+
+int run_process(GameState *gs, int pid, int core_index) {
+    if (core_index < 0 || core_index >= NUM_CORES) {
+        printf("  [!] There is no core %d.\n", core_index + 1);
+        return 0;
+    }
+    int qi = -1;
+    for (int i = 0; i < MAX_QUEUE; i++)
+        if (gs->queue[i].in_use && gs->queue[i].pid == pid) { qi = i; break; }
+
+    if (qi == -1) {
+        printf("  [!] PID %d is not in the queue.\n", pid);
+        return 0;
+    }
+    if (gs->queue[qi].type.is_virus) {
+        gs->health -= 18;
+        gs->threats_missed++;
+        printf("  [!] PID %d was malware. Running it hurt system health.\n", pid);
+        gs->queue[qi].in_use = 0;
+        return 0;
+    }
+    if (gs->cores[core_index].active) {
+        printf("  [!] Core %d is already busy.\n", core_index + 1);
+        return 0;
+    }
+    if (gs->ram + gs->queue[qi].type.ram > 100) {
+        printf("  [!] Not enough free RAM to run PID %d right now.\n", pid);
+        return 0;
+    }
+
+    gs->cores[core_index].active    = 1;
+    gs->cores[core_index].type      = gs->queue[qi].type;
+    gs->cores[core_index].remaining = gs->queue[qi].type.duration;
+    gs->ram += gs->queue[qi].type.ram;
+
+    printf("  [OK] PID %d (%s) is now running on core %d.\n",
+           pid, gs->queue[qi].type.name, core_index + 1);
+    gs->queue[qi].in_use = 0;
+    return 1;
+}
+
+int quarantine_process(GameState *gs, int pid) {
+    int qi = -1;
+    for (int i = 0; i < MAX_QUEUE; i++)
+        if (gs->queue[i].in_use && gs->queue[i].pid == pid) { qi = i; break; }
+
+    if (qi == -1) {
+        printf("  [!] PID %d is not in the queue.\n", pid);
+        return 0;
+    }
+    if (gs->queue[qi].type.is_virus) {
+        gs->score += gs->queue[qi].type.points;
+        gs->threats_blocked++;
+        printf("  [OK] PID %d quarantined. Good call - that was a threat.\n", pid);
+    } else {
+        gs->health -= 4;
+        printf("  [!] PID %d was harmless. Quarantining it wasted a bit of health.\n", pid);
+    }
+    gs->queue[qi].in_use = 0;
+    return 1;
+}
+
+void tick_cores(GameState *gs) {
+    for (int i = 0; i < NUM_CORES; i++) {
+        if (gs->cores[i].active) {
+            gs->cores[i].remaining--;
+            if (gs->cores[i].remaining <= 0) {
+                gs->ram -= gs->cores[i].type.ram;
+                if (gs->ram < 0) gs->ram = 0;
+                gs->score += gs->cores[i].type.points;
+                gs->processed++;
+                printf("  [DONE] %s finished on core %d (+%d points).\n",
+                       gs->cores[i].type.name, i + 1, gs->cores[i].type.points);
+                gs->cores[i].active = 0;
+            }
+        }
+    }
+}
+
+void tick_queue_aging(GameState *gs) {
+    for (int i = 0; i < MAX_QUEUE; i++) {
+        if (gs->queue[i].in_use) {
+            gs->queue[i].waited++;
+            if (gs->queue[i].waited > 4) {
+                gs->health -= 2;
+                printf("  [!] PID %d has been waiting too long - health is dropping.\n",
+                       gs->queue[i].pid);
+            }
+        }
+    }
+}
+
+int check_health(const GameState *gs) {
+    return gs->health > 0;
+}
+
+void render_state(const GameState *gs) {
+    printf("\n----------------------------------------------------------\n");
+    printf(" Time left: %2d   Score: %3d   RAM: %3d%%   Health: %3d%%\n",
+           gs->time_left, gs->score, gs->ram, gs->health);
+    printf("----------------------------------------------------------\n");
+
+    printf(" CPU cores:\n");
+    for (int i = 0; i < NUM_CORES; i++) {
+        if (gs->cores[i].active)
+            printf("   [%d] running %-22s %d tick(s) left\n",
+                   i + 1, gs->cores[i].type.name, gs->cores[i].remaining);
+        else
+            printf("   [%d] idle\n", i + 1);
+    }
+
+    printf(" Incoming queue:\n");
+    int any = 0;
+    for (int i = 0; i < MAX_QUEUE; i++) {
+        if (gs->queue[i].in_use) {
+            any = 1;
+            printf("   PID %-5d %-22s RAM %3d%%%s\n",
+                   gs->queue[i].pid, gs->queue[i].type.name, gs->queue[i].type.ram,
+                   gs->queue[i].type.is_virus ? "  <-- unsigned, looks suspicious" : "");
+        }
+    }
+    if (!any) printf("   (empty)\n");
+}
+
+void print_summary(const GameState *gs, int survived) {
+    printf("\n============================================================\n");
+    printf(survived ? " SHIFT COMPLETE - the OS held the system together\n"
+                     : " SYSTEM CRASH - health hit zero\n");
+    printf("============================================================\n");
+    printf(" Processes completed : %d\n", gs->processed);
+    printf(" Threats quarantined  : %d\n", gs->threats_blocked);
+    printf(" Threats that got through : %d\n", gs->threats_missed);
+    printf(" Queue overloads      : %d\n", gs->overloads);
+    printf(" Final score          : %d\n", gs->score);
+    printf("\n Every action above is a real OS job: assigning a core is process\n"
+           " scheduling, watching RAM is memory management, quarantining a file\n"
+           " is security, and a full queue is what you feel as lag on a real\n"
+           " laptop. Without an OS doing this automatically, none of it happens.\n");
+}
