@@ -1,0 +1,77 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include "process.h"
+
+static void print_intro(void) {
+    printf("============================================================\n");
+    printf("  YOU ARE THE OPERATING SYSTEM\n");
+    printf("  A console demo of process scheduling, memory management\n");
+    printf("  and security - the jobs a real OS does every second.\n");
+    printf("============================================================\n");
+    printf("Commands each turn:\n");
+    printf("  r <pid> <core>   run a queued process on a CPU core (1-%d)\n", NUM_CORES);
+    printf("  q <pid>          quarantine a queued process (use on suspicious files)\n");
+    printf("  n                do nothing this turn, let time pass\n");
+    printf("  x                end the shift early\n\n");
+}
+
+static void read_line(char *buf, int len) {
+    if (fgets(buf, len, stdin) == NULL) { buf[0] = '\0'; return; }
+    buf[strcspn(buf, "\n")] = '\0';
+}
+
+int main(void) {
+    srand((unsigned int) time(NULL));
+
+    GameState gs;
+    init_game(&gs);
+    print_intro();
+
+    char line[64];
+
+    while (gs.running) {
+        /* one or two new processes may arrive each turn */
+        spawn_process(&gs);
+        if (rand() % 100 < 40) spawn_process(&gs);
+
+        render_state(&gs);
+
+        printf("\n> ");
+        read_line(line, sizeof(line));
+
+        char cmd[8]; int a = -1, b = -1;
+        int parsed = sscanf(line, "%7s %d %d", cmd, &a, &b);
+
+        if (parsed >= 1 && strcmp(cmd, "n") == 0) {
+            /* pass */
+        } else if (parsed >= 1 && strcmp(cmd, "x") == 0) {
+            printf("\nEnding shift early by request.\n");
+            break;
+        } else if (parsed >= 2 && strcmp(cmd, "q") == 0) {
+            quarantine_process(&gs, a);
+        } else if (parsed >= 3 && strcmp(cmd, "r") == 0) {
+            run_process(&gs, a, b - 1); /* user types 1-4, we index 0-3 */
+        } else {
+            printf("  [?] Didn't understand that. Try: r <pid> <core>, q <pid>, n, or x\n");
+        }
+
+        tick_cores(&gs);
+        tick_queue_aging(&gs);
+
+        if (!check_health(&gs)) {
+            gs.running = 0;
+            print_summary(&gs, 0);
+            return 0;
+        }
+
+        gs.time_left--;
+        if (gs.time_left <= 0) {
+            gs.running = 0;
+        }
+    }
+
+    print_summary(&gs, 1);
+    return 0;
+}
