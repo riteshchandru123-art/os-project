@@ -1,0 +1,61 @@
+#ifndef PROCESS_H
+#define PROCESS_H
+
+#define NUM_CORES        4
+#define MAX_QUEUE        6
+#define NUM_PROCESS_TYPES 6
+#define NAME_LEN         32
+
+/* A "kind" of process the OS might be asked to run.
+   duration is in game ticks (1 tick = 1 turn). */
+typedef struct {
+    char name[NAME_LEN];
+    int  ram;        /* % of RAM this process needs while running   */
+    int  duration;    /* ticks needed to finish once assigned a core */
+    int  points;      /* score awarded for handling it correctly     */
+    int  is_virus;    /* 1 = should be quarantined, not run           */
+} ProcessType;
+
+/* A process currently sitting in the incoming queue. */
+typedef struct {
+    int pid;
+    ProcessType type;
+    int waited;        /* how many ticks it has been waiting */
+    int in_use;        /* 0 = empty slot, 1 = occupied        */
+} QueueItem;
+
+/* One CPU core: either idle or running a process. */
+typedef struct {
+    int active;
+    ProcessType type;
+    int remaining;     /* ticks left before it completes */
+} Core;
+
+typedef struct {
+    int score;
+    int time_left;      /* ticks remaining in the shift          */
+    int ram;             /* current total RAM used, 0-100         */
+    int health;           /* system health, 0-100                  */
+    QueueItem queue[MAX_QUEUE];
+    Core cores[NUM_CORES];
+    int pid_counter;
+    int processed;
+    int threats_blocked;
+    int threats_missed;
+    int overloads;
+    int running;           /* 1 while the shift is still going */
+} GameState;
+
+extern const ProcessType PROCESS_TYPES[NUM_PROCESS_TYPES];
+
+void init_game(GameState *gs);
+void spawn_process(GameState *gs);
+void tick_cores(GameState *gs);
+void tick_queue_aging(GameState *gs);
+int  run_process(GameState *gs, int pid, int core_index);
+int  quarantine_process(GameState *gs, int pid);
+void render_state(const GameState *gs);
+int  check_health(const GameState *gs);
+void print_summary(const GameState *gs, int survived);
+
+#endif
